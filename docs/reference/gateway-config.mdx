@@ -558,6 +558,8 @@ already exist in the sandbox namespace.
 to `true` to accept an explicit `unrestricted_network = true` request in the
 sandbox's Kubernetes driver config. The Helm value is
 `supervisor.allowUnrestrictedNetwork`. Other sandboxes keep their allowlist.
+Helm omits this key while disabled so the default chart configuration remains
+readable by older gateways that reject unknown driver fields.
 The mode is fixed at creation and survives stop/start and gateway restarts;
 turning admission off does not revoke existing unrestricted sandboxes.
 

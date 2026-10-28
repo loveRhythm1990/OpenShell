@@ -113,12 +113,12 @@ tests:
           path: data["gateway.toml"]
           pattern: 'supervisor[_]topology\s*='
 
-  - it: rejects unrestricted sandbox networking by default
+  - it: omits the opt-in key by default for compatibility with older gateways
     template: templates/gateway-config.yaml
     asserts:
-      - matchRegex:
+      - notMatchRegex:
           path: data["gateway.toml"]
-          pattern: 'allow_unrestricted_network\s*=\s*false'
+          pattern: 'allow_unrestricted_network\s*='
 
   - it: allows operators to admit explicitly unrestricted sandboxes
     template: templates/gateway-config.yaml

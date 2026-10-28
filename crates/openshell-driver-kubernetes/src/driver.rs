@@ -3245,7 +3245,6 @@ fn default_workspace_volume_claim_templates(
     }])
 }
 
-/// Parameters shared by `sandbox_to_k8s_spec` and `sandbox_template_to_k8s`.
 fn apply_unrestricted_network_argument(
     command: &mut serde_json::Value,
     params: &SandboxPodParams<'_>,
@@ -3258,6 +3257,7 @@ fn apply_unrestricted_network_argument(
     }
 }
 
+/// Parameters shared by `sandbox_to_k8s_spec` and `sandbox_template_to_k8s`.
 #[derive(Clone)]
 #[allow(clippy::struct_excessive_bools)]
 struct SandboxPodParams<'a> {
