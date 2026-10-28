@@ -459,6 +459,16 @@ channel, and gateway authentication and SSH continue to use their existing paths
 Before rolling back to an older supervisor, recreate unrestricted sandboxes or
 retain a supervisor that understands this argument.
 
+For a dedicated local Kind or disposable CI cluster, the existing Kubernetes
+E2E harness provides `mise run e2e:kubernetes:unrestricted` and
+`mise run e2e:kubernetes:unrestricted:sidecar`. Set
+`OPENSHELL_E2E_KUBE_CONTEXT` to that cluster and
+`OPENSHELL_E2E_NETWORK_NAME` to its Docker network. Supply matching local
+images through the harness's existing `OPENSHELL_REGISTRY` and `IMAGE_TAG`
+inputs. These opt-in profiles test TCP/UDP and DNS, proxy environment cleanup,
+non-root identity, raw-socket denial, and separate modes for entrypoint and SSH
+children while both sandboxes exist.
+
 ### Kubernetes Driver Config PVC Mounts
 
 Kubernetes driver config can mount existing PersistentVolumeClaims into the
