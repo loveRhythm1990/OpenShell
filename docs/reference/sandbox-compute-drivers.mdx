@@ -422,7 +422,9 @@ If Agent Sandbox is upgraded in place, restart the OpenShell gateway after the c
 Enable `allow_unrestricted_network = true` in the Kubernetes gateway driver
 configuration before creating an unrestricted sandbox. For Helm, set
 `supervisor.allowUnrestrictedNetwork = true`. The default is false, and the
-driver rejects an unapproved request before creating Kubernetes resources.
+driver rejects an unapproved request with `INVALID_ARGUMENT` during creation
+preflight, before the gateway persists the sandbox or creates Kubernetes
+resources. The create path also checks admission before any Kubernetes writes.
 Use gateway and supervisor images built from the same source revision.
 
 Select unrestricted networking for one sandbox through its driver config.

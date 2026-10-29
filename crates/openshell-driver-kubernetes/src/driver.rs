@@ -1204,8 +1204,11 @@ impl KubernetesComputeDriver {
     }
 
     pub async fn validate_sandbox_create(&self, sandbox: &Sandbox) -> Result<(), tonic::Status> {
-        let _ = self
+        let driver_config = self
             .validate_driver_config_for_sandbox(sandbox)
+            .map_err(tonic::Status::invalid_argument)?;
+        driver_config
+            .validate_network_admission(self.config.allow_unrestricted_network)
             .map_err(tonic::Status::invalid_argument)?;
         match self.config.workspace_mode {
             WorkspaceMode::Shared => {
@@ -4800,6 +4803,81 @@ mod tests {
             }),
             ..SandboxSpec::default()
         }
+    }
+
+    fn network_admission_driver(
+        allowed: bool,
+        workspace_mode: WorkspaceMode,
+    ) -> KubernetesComputeDriver {
+        let service = tower::service_fn(|_: http::Request<kube::client::Body>| async {
+            Err::<http::Response<kube::client::Body>, _>(std::io::Error::other(
+                "network admission must not call the Kubernetes API",
+            ))
+        });
+        let client = Client::new(service, "default");
+        KubernetesComputeDriver {
+            client: client.clone(),
+            watch_client: client,
+            sandbox_api_version: Arc::new(OnceCell::new()),
+            config: KubernetesComputeConfig {
+                allow_unrestricted_network: allowed,
+                workspace_mode,
+                ..KubernetesComputeConfig::default()
+            },
+            operator_allowlist: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn validate_sandbox_create_enforces_network_admission() {
+        for workspace_mode in [
+            WorkspaceMode::Shared,
+            WorkspaceMode::Managed,
+            WorkspaceMode::Operator,
+        ] {
+            for allowed in [false, true] {
+                let driver = network_admission_driver(allowed, workspace_mode);
+                for requested in [None, Some(false), Some(true)] {
+                    let mut spec = direct_network_spec(requested.unwrap_or(false));
+                    if requested.is_none() {
+                        spec.template.as_mut().unwrap().driver_config = None;
+                    }
+                    let sandbox = Sandbox {
+                        name: "network-admission".into(),
+                        workspace: "default".into(),
+                        spec: Some(spec),
+                        ..Sandbox::default()
+                    };
+                    let result = driver.validate_sandbox_create(&sandbox).await;
+                    if requested == Some(true) && !allowed {
+                        let error =
+                            result.expect_err("unapproved network mode must fail preflight");
+                        assert_eq!(error.code(), tonic::Code::InvalidArgument);
+                        assert!(error.message().contains("unrestricted network is disabled"));
+                    } else {
+                        result.expect("admitted and allowlist modes must pass preflight");
+                    }
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn create_sandbox_keeps_network_admission_guard() {
+        let driver = network_admission_driver(false, WorkspaceMode::Shared);
+        let sandbox = Sandbox {
+            name: "network-admission".into(),
+            workspace: "default".into(),
+            spec: Some(direct_network_spec(true)),
+            ..Sandbox::default()
+        };
+        let error = driver.create_sandbox(&sandbox).await.unwrap_err();
+        assert!(matches!(error, KubernetesDriverError::InvalidArgument(_)));
+        assert!(
+            error
+                .to_string()
+                .contains("unrestricted network is disabled")
+        );
     }
 
     #[test]
